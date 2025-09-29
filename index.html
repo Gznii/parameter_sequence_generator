@@ -17,24 +17,32 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Parametric Sequence Generator</h2>
-        <label>Model: <b>y = a * x</b></label>
-        <label for="learningRate">Learning Rate</label>
-        <input type="number" id="learningRate" value="0.01" step="0.001" min="0.0001" max="1">
-        <label for="epochs">Epochs</label>
-        <input type="number" id="epochs" value="10" min="1" max="1000">
-        <label for="csvData">Paste CSV Data (columns: x,y)</label>
-        <textarea id="csvData" placeholder="e.g.\n1,2\n2,4\n3,6"></textarea>
-        <button id="runBtn">Run</button>
-        <div id="chart-container">
-            <canvas id="chart" width="600" height="400"></canvas>
+    <div class="container" style="display: flex; flex-direction: row; gap: 30px;">
+        <div style="flex: 1; min-width: 0;">
+            <h2>Parametric Sequence Generator</h2>
+            <label>Model: <b>y = a * x</b></label>
+            <label for="learningRate">Learning Rate</label>
+            <input type="number" id="learningRate" value="0.01" step="0.001" min="0.0001" max="1">
+            <label for="epochs">Epochs</label>
+            <input type="number" id="epochs" value="10" min="1" max="1000">
+            <label for="csvData">Paste CSV Data (columns: x,y)</label>
+            <textarea id="csvData" placeholder="e.g.\n1,2\n2,4\n3,6"></textarea>
+            <button id="runBtn">Run</button>
+            <button id="resetBtn" style="margin-left:10px;background:#dc3545;">Reset</button>
+            <div id="chart-container">
+                <canvas id="chart" width="600" height="400"></canvas>
+            </div>
+        </div>
+        <div style="width: 180px; min-width: 120px; background: #f9f9f9; border-radius: 8px; box-shadow: 0 1px 4px #0001; padding: 18px 10px;">
+            <h3 style="margin-top:0; font-size:1.1em;">a Values</h3>
+            <div id="aValuesCol" style="font-family:monospace; font-size:1em; overflow-y:auto; max-height:400px;"></div>
         </div>
     </div>
     <script>
         const ctx = document.getElementById('chart').getContext('2d');
-        let chart;
-        let animationInterval;
+    let chart;
+    let animationInterval;
+    let aHistory = [];
 
         function parseCSV(csv) {
             const lines = csv.trim().split(/\r?\n/);
@@ -46,7 +54,7 @@
             return data;
         }
 
-        function plot(data, a=null) {
+    function plot(data, a=null, highlightIdx=null) {
             const xs = data.map(d => d.x);
             const ys = data.map(d => d.y);
             const minX = Math.min(...xs);
@@ -103,6 +111,21 @@
             return history;
         }
 
+        function updateAValuesCol(history, highlightIdx) {
+            const col = document.getElementById('aValuesCol');
+            col.innerHTML = '';
+            for (let i = 0; i < history.length; i++) {
+                const val = history[i];
+                const div = document.createElement('div');
+                div.textContent = `Epoch ${i}: ${val.toFixed(6)}`;
+                if (i === highlightIdx) {
+                    div.style.background = '#ffe0e0';
+                    div.style.fontWeight = 'bold';
+                }
+                col.appendChild(div);
+            }
+        }
+
         document.getElementById('runBtn').onclick = function() {
             if (animationInterval) clearInterval(animationInterval);
             const csv = document.getElementById('csvData').value;
@@ -113,14 +136,29 @@
             }
             const lr = parseFloat(document.getElementById('learningRate').value);
             const epochs = parseInt(document.getElementById('epochs').value);
-            const history = gradientDescent(data, lr, epochs);
+            aHistory = gradientDescent(data, lr, epochs);
             let i = 0;
-            plot(data, history[0]);
+            plot(data, aHistory[0], 0);
+            updateAValuesCol(aHistory, 0);
             animationInterval = setInterval(() => {
-                plot(data, history[i]);
+                plot(data, aHistory[i], i);
+                updateAValuesCol(aHistory, i);
                 i++;
                 if (i > epochs) clearInterval(animationInterval);
             }, 1000);
+        };
+
+        document.getElementById('resetBtn').onclick = function() {
+            if (animationInterval) clearInterval(animationInterval);
+            document.getElementById('learningRate').value = 0.01;
+            document.getElementById('epochs').value = 10;
+            document.getElementById('csvData').value = '';
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+            document.getElementById('aValuesCol').innerHTML = '';
+            aHistory = [];
         };
     </script>
 </body>
