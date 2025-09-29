@@ -117,7 +117,7 @@
             for (let i = 0; i < history.length; i++) {
                 const val = history[i];
                 const div = document.createElement('div');
-                div.textContent = `Epoch ${i}: ${val.toFixed(6)}`;
+                div.textContent = val.toFixed(6);
                 if (i === highlightIdx) {
                     div.style.background = '#ffe0e0';
                     div.style.fontWeight = 'bold';
