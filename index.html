@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parametric Sequence Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f7f7f7; }
+        .container { max-width: 700px; margin: auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px #0001; }
+        label { display: block; margin-top: 20px; font-weight: bold; }
+        input[type="number"], input[type="text"] { width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; }
+        textarea { width: 100%; height: 120px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; font-family: monospace; }
+        button { margin-top: 20px; padding: 12px 30px; font-size: 1.1em; border: none; border-radius: 5px; background: #007bff; color: #fff; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #chart-container { margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Parametric Sequence Generator</h2>
+        <label>Model: <b>y = a * x</b></label>
+        <label for="learningRate">Learning Rate</label>
+        <input type="number" id="learningRate" value="0.01" step="0.001" min="0.0001" max="1">
+        <label for="epochs">Epochs</label>
+        <input type="number" id="epochs" value="10" min="1" max="1000">
+        <label for="csvData">Paste CSV Data (columns: x,y)</label>
+        <textarea id="csvData" placeholder="e.g.\n1,2\n2,4\n3,6"></textarea>
+        <button id="runBtn">Run</button>
+        <div id="chart-container">
+            <canvas id="chart" width="600" height="400"></canvas>
+        </div>
+    </div>
+    <script>
+        const ctx = document.getElementById('chart').getContext('2d');
+        let chart;
+        let animationInterval;
+
+        function parseCSV(csv) {
+            const lines = csv.trim().split(/\r?\n/);
+            const data = [];
+            for (const line of lines) {
+                const [x, y] = line.split(',').map(Number);
+                if (!isNaN(x) && !isNaN(y)) data.push({x, y});
+            }
+            return data;
+        }
+
+        function plot(data, a=null) {
+            const xs = data.map(d => d.x);
+            const ys = data.map(d => d.y);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const linePoints = a !== null ? [
+                {x: minX, y: a * minX},
+                {x: maxX, y: a * maxX}
+            ] : [];
+
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Dataset',
+                            data: data,
+                            backgroundColor: '#007bff',
+                        },
+                        ...(a !== null ? [{
+                            label: 'Line of Best Fit',
+                            type: 'line',
+                            data: linePoints,
+                            borderColor: '#ff4136',
+                            borderWidth: 2,
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0
+                        }] : [])
+                    ]
+                },
+                options: {
+                    animation: false,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'x' } },
+                        y: { title: { display: true, text: 'y' } }
+                    }
+                }
+            });
+        }
+
+        function gradientDescent(data, lr, epochs) {
+            let a = 0;
+            const history = [a];
+            for (let epoch = 0; epoch < epochs; epoch++) {
+                let grad = 0;
+                for (const {x, y} of data) {
+                    grad += -2 * x * (y - a * x);
+                }
+                grad /= data.length;
+                a = a - lr * grad;
+                history.push(a);
+            }
+            return history;
+        }
+
+        document.getElementById('runBtn').onclick = function() {
+            if (animationInterval) clearInterval(animationInterval);
+            const csv = document.getElementById('csvData').value;
+            const data = parseCSV(csv);
+            if (data.length === 0) {
+                alert('Please enter valid CSV data.');
+                return;
+            }
+            const lr = parseFloat(document.getElementById('learningRate').value);
+            const epochs = parseInt(document.getElementById('epochs').value);
+            const history = gradientDescent(data, lr, epochs);
+            let i = 0;
+            plot(data, history[0]);
+            animationInterval = setInterval(() => {
+                plot(data, history[i]);
+                i++;
+                if (i > epochs) clearInterval(animationInterval);
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
